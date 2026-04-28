@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DocentePro Honduras</title>
+
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+
+<style>
+body { margin:0; background:#f1f5f9; font-family:sans-serif; }
+</style>
+</head>
+
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+
+const { useState, useRef, useEffect } = React;
+
+const App = () => {
+
+    const [messages, setMessages] = useState([]);
+    const [input, setInput] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    const chatRef = useRef(null);
+
+    useEffect(() => {
+        if(chatRef.current){
+            chatRef.current.scrollTop = chatRef.current.scrollHeight;
+        }
+    }, [messages]);
+
+    // 🔐 PEGA TU API KEY AQUÍ
+    const API_KEY = AIzaSyANQ5Mmf5uEpI8YdeHjbyb_qlDhG-ZfZEE;
+
+    const sendMessage = async () => {
+        if(!input.trim()) return;
+
+        const userMsg = input;
+
+        setMessages(prev => [...prev, {role:'user', text:userMsg}]);
+        setInput('');
+        setLoading(true);
+
+        try {
+
+            const res = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`,
+                {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{text: userMsg}]
+                        }]
+                    })
+                }
+            );
+
+            const data = await res.json();
+
+            if(!data.candidates){
+                throw new Error("Respuesta inválida");
+            }
+
+            const reply = data.candidates[0].content.parts[0].text;
+
+            setMessages(prev => [...prev, {role:'ai', text:reply}]);
+
+        } catch(err){
+            setMessages(prev => [...prev, {
+                role:'ai',
+                text:'⚠️ Error: revisa tu API Key o conexión.'
+            }]);
+        }
+
+        setLoading(false);
+    };
+
+    return (
+        <div className="flex flex-col h-screen">
+
+            <header className="bg-indigo-600 text-white p-4 font-bold text-center">
+                DocentePro Honduras
+            </header>
+
+            <main ref={chatRef} className="flex-1 overflow-y-auto p-4 space-y-3">
+
+                {messages.length === 0 && (
+                    <p className="text-center text-gray-400">
+                        Ejemplo: "Hazme una planificación de Español 5to grado"
+                    </p>
+                )}
+
+                {messages.map((m,i)=>(
+                    <div key={i} className={m.role==='user'?'text-right':'text-left'}>
+                        <div className={`inline-block px-4 py-2 rounded-xl max-w-[80%]
+                            ${m.role==='user'
+                                ? 'bg-indigo-500 text-white'
+                                : 'bg-white border'}`}>
+                            {m.text}
+                        </div>
+                    </div>
+                ))}
+
+                {loading && <p className="text-gray-400">Pensando como docente experto... 🧠</p>}
+
+            </main>
+
+            <div className="p-3 border-t flex gap-2">
+                <textarea
+                    className="flex-1 border p-2 rounded"
+                    rows="1"
+                    value={input}
+                    onChange={e=>setInput(e.target.value)}
+                    onKeyDown={e=>{
+                        if(e.key==='Enter' && !e.shiftKey){
+                            e.preventDefault();
+                            sendMessage();
+                        }
+                    }}
+                />
+
+                <button
+                    onClick={sendMessage}
+                    className="bg-indigo-600 text-white px-4 rounded"
+                >
+                    Enviar
+                </button>
+            </div>
+
+        </div>
+    );
+};
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+
+</script>
+</body>
+</html>
